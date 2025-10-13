@@ -1,0 +1,25 @@
+
+version: "3.9"
+services:
+  adapter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: datasync-qa-adapter
+    ports:
+      - "${APP_PORT-8000}:8000"
+    environment:
+      DATASYNC_HOME: /app/datasync
+      JWT_SECRET: ${JWT_SECRET-please_change_me}
+      RATE_LIMIT_SYNC: ${RATE_LIMIT_SYNC-3/minute}
+      CORS_ORIGINS: ${CORS_ORIGINS-*}
+      ALLOWED_TABLES: ${ALLOWED_TABLES-}
+      LOGS_DIR: /app/datasync/logs
+    volumes:
+      - ${HOST_DATASYNC_PATH-/Users/mrochin/DataSync}:/app/datasync:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
