@@ -1,86 +1,150 @@
-# DataSync QA Adapter — FastAPI
 
-(Sección Docker se agregará abajo)
+# DataSync QA Adapter – Sincronización segura con FastAPI
 
+[![QA Workflow](https://github.com/MRochin/Reto3_InteligenciaArtificial/actions/workflows/qa.yml/badge.svg)](https://github.com/MRochin/Reto3_InteligenciaArtificial/actions/workflows/qa.yml)
+[![CodeQL Analysis](https://github.com/MRochin/Reto3_InteligenciaArtificial/actions/workflows/codeql.yml/badge.svg)](https://github.com/MRochin/Reto3_InteligenciaArtificial/actions/workflows/codeql.yml)
+[![Docker Publish](https://github.com/MRochin/Reto3_InteligenciaArtificial/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/MRochin/Reto3_InteligenciaArtificial/actions/workflows/docker-publish.yml)
+
+---
+
+## 🧩 Descripción general
+
+**DataSync QA Adapter** es un servicio **FastAPI** diseñado para sincronizar información entre bases de datos **SQL Server** y **MySQL** con un enfoque en **seguridad, trazabilidad y aseguramiento de calidad automatizado (QA)**.  
+Integra autenticación **JWT**, validaciones **Pydantic**, **Rate Limiting**, y un **modo Mock** para pruebas sin base de datos real.  
+
+Además, incluye un pipeline completo **CI/CD** con herramientas de IA y seguridad:
+
+- **Ruff + Bandit + Detect-Secrets + Pip-Audit + CodeQL + Trivy**  
+- **Pruebas unitarias automatizadas (pytest + coverage ≥80%)**  
+- **Despliegue automático a GHCR (GitHub Container Registry)**  
+- **Actualizaciones automáticas con Dependabot**  
 
 ---
 
 ## 🚀 Despliegue con Docker / Docker Compose
 
-### Opción A) Docker Compose (recomendada)
-1) Copia `.env.example` a `.env` y ajusta variables (en especial `HOST_DATASYNC_PATH`, `JWT_SECRET` y `ALLOWED_TABLES`).
-2) Levanta el servicio:
-```bash
-docker compose up --build -d
-```
-3) Verifica salud:
-```bash
-curl http://localhost:${APP_PORT:-8000}/health
-```
+### 🧱 Opción A: Docker Compose (recomendada)
+1. Copia `.env.example` a `.env` y ajusta variables (`HOST_DATASYNC_PATH`, `JWT_SECRET`, `ALLOWED_TABLES`).
+2. Levanta el servicio:
+   ```bash
+   docker compose up --build -d
+   ```
+3. Verifica el estado:
+   ```bash
+   curl http://localhost:8000/health
+   ```
 
-> El DataSync del host se monta **de solo lectura** en `/app/datasync`. Si requieres escritura para logs, cambia `:ro` por `:rw`.
-
-### Opción B) Dockerfile (adapter mínimo)
-```bash
-docker build -t datasync-qa-adapter:latest .
-docker run --rm -p 8000:8000   -e DATASYNC_HOME=/app/datasync   -e JWT_SECRET="cambia_este_secreto_largo_seguro"   -v /Users/mrochin/DataSync:/app/datasync:ro   datasync-qa-adapter:latest
-```
-
-### Opción C) Dockerfile.full (con ODBC para SQL Server)
-Si tu `sync_engine` usa `pyodbc` y requiere el **Driver ODBC 18** para SQL Server dentro del contenedor:
-```bash
-docker build -t datasync-qa-adapter:odbc -f Dockerfile.full .
-docker run --rm -p 8000:8000   -e DATASYNC_HOME=/app/datasync   -e JWT_SECRET="cambia_este_secreto_largo_seguro"   -v /Users/mrochin/DataSync:/app/datasync:ro   datasync-qa-adapter:odbc
-```
-
-> Nota: Asegura conectividad de red desde el contenedor hacia tus DBs (SQL Server/MySQL).
-
+> El DataSync del host se monta **de solo lectura** en `/app/datasync`.  
+> Si requieres escritura para logs, cambia `:ro` por `:rw`.
 
 ---
 
-## 🧪 Modo B — Simulación sin BDs (Mock)
 
-Este modo permite **probar todo el adapter** (JWT, rate limit, whitelist, `/logs`, `/status`, `/sync`) **sin** depender de SQL Server/MySQL.
+## 🧪 Modo Mock – Simulación sin Bases de Datos
 
-### Ejecutar en local (sin Docker)
-```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+Permite validar todo el adapter (**JWT**, rate limit, listas blancas, `/logs`, `/status`, `/sync`) **sin depender de SQL Server ni MySQL**.
 
-# Apunta el adapter al mock incluido en este repo
-export DATASYNC_HOME="$(pwd)/datasync-mock"
-export JWT_SECRET="cambia_este_secreto_largo_seguro"
-export ALLOWED_TABLES="kpi_jornadas"
+### 🔎 Prueba rápida
 
-uvicorn app.main:app --reload
-```
-
-Prueba rápida:
-```bash
 # health
+```bash 
 curl http://localhost:8000/health
-
+```
+```bash 
 # login → token
 TOKEN=$(curl -s -X POST -d "username=admin&password=adminadmin" http://localhost:8000/auth/login | jq -r .access_token)
+```
 
-# status (responde 'healthy-mock')
+# status
+```bash 
 curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/status
-
+```
 # sync (mock simula éxito)
+```bash 
 curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"   -d '{"tables":["kpi_jornadas"],"dry_run":true}' http://localhost:8000/sync
 ```
 
-### Ejecutar con Docker Compose (sin BDs)
-1) Copia `.env.example` a `.env`.
-2) Ajusta `.env` para que `HOST_DATASYNC_PATH` apunte al mock del repo:
+---
+
+## ⚙️ CI/CD y QA Segura
+
+El proyecto implementa un flujo completo de integración continua (CI/CD) para asegurar la calidad y seguridad del código:
+
+### 🧪 **1. QA Workflow (`.github/workflows/qa.yml`)**
+Ejecuta en cada *push* o *pull request*:
+- `ruff` → estilo y convenciones.  
+- `bandit` → análisis estático de seguridad.  
+- `detect-secrets` → búsqueda de credenciales expuestas.  
+- `pip-audit` → vulnerabilidades en dependencias.  
+- `pytest` → pruebas unitarias (mínimo 80% cobertura).  
+- Falla automáticamente si algún gate no se cumple.
+
+### 🔬 **2. CodeQL (`.github/workflows/codeql.yml`)**
+Escanea el código fuente (Python) en busca de patrones de vulnerabilidad.  
+Corre en el branch `main`, en PRs y de forma semanal.
+
+### 🐳 **3. Docker Publish (`.github/workflows/docker-publish.yml`)**
+Construye y publica imágenes Docker firmadas en GHCR (`ghcr.io/MRochin/Reto3_InteligenciaArtificial`).  
+Incluye escaneo de vulnerabilidades de imagen con **Trivy** (HIGH/CRITICAL bloquean publicación).
+
+### 🧠 **4. Dependabot & Security**
+- `dependabot.yml` → actualizaciones automáticas de pip y GitHub Actions.  
+- `SECURITY.md` → política de seguridad con lineamientos del pipeline.  
+
+> Todos los flujos CI/CD se ejecutan en `main`, y los resultados se reflejan en los **badges** del encabezado.
+
+---
+
+## ⚙️ Comandos útiles
+
+| Acción | Comando |
+|--------|----------|
+| 🧪 Ejecutar pruebas | `pytest --cov=app --cov-report=term-missing` |
+| 🧰 Linter | `ruff check app` |
+| 🔒 Análisis de seguridad | `bandit -r app -ll` |
+| 🧼 Auditoría de dependencias | `pip-audit` |
+| 🧬 Ejecutar CI local | `pytest && ruff check app && bandit -r app && pip-audit` |
+| 🐳 Construir imagen Docker | `docker build -t datasync-qa-adapter .` |
+| 🚀 Correr modo Mock local | `./run-mock.sh` |
+
+---
+
+## 🔐 Seguridad y calidad
+
+- Pipelines CI/CD con **SAST**, **SCA** y **tests automatizados**.  
+- **Cobertura mínima 80%** como gate obligatorio.  
+- Revisión automática de dependencias y secretos.  
+- Imágenes Docker escaneadas por vulnerabilidades (Trivy).  
+- Gestión segura de variables con `.env` y **GitHub Secrets**.  
+
+---
+
+## 🧠 Arquitectura general
+
 ```
-HOST_DATASYNC_PATH=./datasync-mock
-JWT_SECRET=cambia_este_secreto_largo_seguro
-ALLOWED_TABLES=kpi_jornadas
+📦 DataSync QA Adapter
+├── app/
+│   ├── main.py              → Entrypoint FastAPI
+│   ├── auth.py              → JWT + bcrypt
+│   ├── schemas.py           → Validaciones Pydantic
+│   └── settings.py          → Configuración y rate limits
+│
+├── datasync-mock/           → Motor simulado (sin BD)
+│   └── src/sync_engine.py
+│
+├── tests/                   → Pruebas automatizadas (pytest)
+├── docker-compose.yml       → Entorno Docker
+├── Dockerfile               → Imagen base
+├── .env.example             → Variables de entorno (ejemplo)
+├── .github/workflows/       → CI/CD pipelines (QA, CodeQL, Docker)
+└── README.md                → Documentación completa
 ```
-3) Levanta el adapter:
-```bash
-docker compose up --build -d
-curl http://localhost:${APP_PORT:-8000}/health
-```
-> El contenedor montará `./datasync-mock` en `/app/datasync`, por lo que el adapter importará `src/sync_engine.py` del mock automáticamente.
+
+---
+
+## 🧑‍💻 Autor y mantenimiento
+
+**Desarrollado por:** [MRochin](https://github.com/MRochin)  
+**Repositorio:** [Reto3_InteligenciaArtificial](https://github.com/MRochin/Reto3_InteligenciaArtificial)  
+**Licencia:** MIT  
+**Última actualización:** Octubre 2025
