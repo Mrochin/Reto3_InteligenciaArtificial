@@ -1,11 +1,16 @@
+fastapi==0.115.6
+# Starlette parchado (pip-audit pide >=0.40.0; usamos 0.47.2)
+starlette==0.47.2
 
-fastapi==0.115.0
 uvicorn[standard]==0.30.6
 pydantic==2.9.2
 passlib[bcrypt]==1.7.4
 PyJWT==2.9.0
 slowapi==0.1.9
-python-multipart==0.0.9
+
+# Parche de seguridad GHSA-59g5-xgcq-4qw3
+python-multipart==0.0.18
+
 pydantic-settings==2.4.0
 
 # tests / qa
@@ -17,6 +22,9 @@ pip-audit==2.7.3
 detect-secrets==1.5.0
 httpx==0.27.2
 defusedxml>=0.7.1
+
+# Tooling sin CVEs reportados por pip-audit
+setuptools>=78.1.1
 
 # IA
 openai>=1.43.0
