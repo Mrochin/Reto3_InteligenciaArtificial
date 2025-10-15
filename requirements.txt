@@ -1,6 +1,6 @@
 fastapi==0.115.6
 # Starlette parchado (pip-audit pide >=0.40.0; usamos 0.47.2)
-starlette==0.47.2
+starlette==0.41.3
 
 uvicorn[standard]==0.30.6
 pydantic==2.9.2
@@ -24,7 +24,7 @@ httpx==0.27.2
 defusedxml>=0.7.1
 
 # Tooling sin CVEs reportados por pip-audit
-setuptools>=78.1.1
+setuptools>=80.9.0
 
 # IA
 openai>=1.43.0
