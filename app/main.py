@@ -4,8 +4,9 @@ import sys
 import asyncio
 import subprocess
 import pathlib
-import xml.etree.ElementTree as ET
+#import xml.etree.ElementTree as ET
 from typing import Dict, Any, AsyncIterator, List, Optional, Tuple
+from defusedxml import ElementTree as DefusedET
 
 from fastapi import (
     FastAPI,
@@ -159,11 +160,12 @@ def _startup_mount_cov():
     _mount_htmlcov()
 
 def _read_coverage_summary() -> Dict[str, Any]:
-    """Lee coverage.xml y devuelve {ok, percent} para el gauge del dashboard."""
+    """Lee coverage.xml de forma segura y devuelve {ok, percent} para el gauge del dashboard."""
     if not COV_XML.exists():
         return {"ok": False, "percent": None}
     try:
-        root = ET.parse(str(COV_XML)).getroot()
+        # Uso seguro: defusedxml evita XXE/DTD y otros ataques
+        root = DefusedET.parse(str(COV_XML)).getroot()
         line_rate = float(root.attrib.get("line-rate", "0"))
         return {"ok": True, "percent": round(line_rate * 100, 2)}
     except Exception:

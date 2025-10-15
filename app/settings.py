@@ -4,13 +4,34 @@ from typing import List, Optional, Union
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import field_validator
 
+# ---- SlowAPI (Rate Limiting) ----
+# Mantener estos imports arriba evita ruff E402. Además, funciona aunque SlowAPI no esté instalado.
+try:
+    from slowapi import Limiter, _rate_limit_exceeded_handler  # type: ignore
+    from slowapi.util import get_remote_address  # type: ignore
+    from slowapi.errors import RateLimitExceeded  # type: ignore
+except Exception:  # SlowAPI opcional
+    Limiter = None  # type: ignore
+    _rate_limit_exceeded_handler = None  # type: ignore
+    get_remote_address = None  # type: ignore
+
+    class RateLimitExceeded(Exception):  # type: ignore
+        pass
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        # Si prefieres ignorar variables no declaradas, descomenta la línea de abajo:
+        # extra="ignore",
+    )
 
     # App
     APP_NAME: str = "DataSync QA Adapter"
+    # Variables que tu CI/compose estaban inyectando y que antes no existían:
+    APP_PORT: int = 8000
+    HOST_DATASYNC_PATH: Optional[str] = "./datasync-mock"
 
     # Auth / JWT
     JWT_SECRET: str = "dev_secret_change_me"
@@ -19,7 +40,7 @@ class Settings(BaseSettings):
     ADMIN_PASSWORD_HASH: Optional[str] = None
     ADMIN_PASSWORD_PLAIN: Optional[str] = "adminadmin"
 
-    # DataSync
+    # DataSync (ruta dentro del contenedor)
     DATASYNC_HOME: str = "./datasync-mock"
 
     # Rate limiting
@@ -29,6 +50,15 @@ class Settings(BaseSettings):
     # Seguridad / CORS / Whitelist (acepta str o lista en env)
     CORS_ORIGINS: Union[List[str], str] = ["*"]
     ALLOWED_TABLES: Union[List[str], str] = []
+
+    # Dashboard QA (dev-only helpers)
+    DASHBOARD_ENABLE_DEV: bool = True
+
+    # IA / Generación de pruebas
+    OPENAI_API_KEY: Optional[str] = None
+    LLM_MODEL: str = "gpt-4o"
+    MAX_ITERS: int = 3
+    MAX_SOURCE_CHARS: int = 10_000
 
     @field_validator("CORS_ORIGINS", "ALLOWED_TABLES", mode="before")
     @classmethod
@@ -55,26 +85,17 @@ class Settings(BaseSettings):
             return [item.strip() for item in s.split(",") if item.strip()]
         return v
 
+
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
 
-settings = get_settings()
 
-# PON ESTO CERCA DEL RESTO DE IMPORTS, ARRIBA DEL ARCHIVO:
-try:
-    from slowapi import Limiter, _rate_limit_exceeded_handler  # type: ignore
-    from slowapi.util import get_remote_address  # type: ignore
-    from slowapi.errors import RateLimitExceeded  # type: ignore
-except Exception:  # slowapi opcional en algunos entornos
-    Limiter = None  # type: ignore
-    _rate_limit_exceeded_handler = None  # type: ignore
-    get_remote_address = None  # type: ignore
-    class RateLimitExceeded(Exception):  # type: ignore
-        pass
+settings = get_settings()
 
 
 def init_rate_limiter(app):
+    """Registrar SlowAPI si está disponible; si no, devolver None sin romper la app."""
     if Limiter is None:
         return None
     limiter = Limiter(key_func=get_remote_address)
