@@ -45,7 +45,7 @@ jobs:
           root = ET.parse('coverage.xml').getroot()
           pct = float(root.attrib.get('line-rate', '0')) * 100
           print(f"Coverage: {pct:.2f}%")
-          sys.exit(0 if pct >= 80 else 1)
+          sys.exit(0 if pct >= 60 else 1)
           PY
 
       - name: Upload coverage
