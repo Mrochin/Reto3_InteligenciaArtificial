@@ -83,7 +83,7 @@ def _load_sync_engine():
 
 # === PROTECTED ENDPOINTS ===
 @app.get("/status", response_model=StatusResponse)
-def status(_: str = Depends(require_auth)):
+def get_status(_: str = Depends(require_auth)):
     engine = _load_sync_engine()
     return engine.get_sync_status()
 

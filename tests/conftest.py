@@ -1,7 +1,7 @@
+# ruff: noqa: E402
 # tests/conftest.py
 import os
 import sys
-import json
 import pathlib
 import importlib
 import builtins
@@ -176,8 +176,8 @@ def pytest_collection_modifyitems(items):
 
         # IA: test frágil que intenta forzar ImportError tocando sys.path/env
         if "ai_generated" in path and ("load_sync_engine_fallback_import_error" in name):
-                item.add_marker(pytest.mark.xfail(
-                    reason="IA: fallback test frágil; el import se recompone por _load_sync_engine()"))
+            item.add_marker(pytest.mark.xfail(
+                reason="IA: fallback test frágil; el import se recompone por _load_sync_engine()"))
 
         # IA que esperan 403 por whitelist (pero la tenemos desactivada en tests)
         if "ai_generated" in path and (

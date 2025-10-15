@@ -4,6 +4,8 @@ from typing import List, Optional, Union
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import field_validator
 
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
@@ -59,12 +61,22 @@ def get_settings() -> Settings:
 
 settings = get_settings()
 
-# ---- SlowAPI (Rate Limiting) ----
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
+# PON ESTO CERCA DEL RESTO DE IMPORTS, ARRIBA DEL ARCHIVO:
+try:
+    from slowapi import Limiter, _rate_limit_exceeded_handler  # type: ignore
+    from slowapi.util import get_remote_address  # type: ignore
+    from slowapi.errors import RateLimitExceeded  # type: ignore
+except Exception:  # slowapi opcional en algunos entornos
+    Limiter = None  # type: ignore
+    _rate_limit_exceeded_handler = None  # type: ignore
+    get_remote_address = None  # type: ignore
+    class RateLimitExceeded(Exception):  # type: ignore
+        pass
+
 
 def init_rate_limiter(app):
+    if Limiter is None:
+        return None
     limiter = Limiter(key_func=get_remote_address)
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
