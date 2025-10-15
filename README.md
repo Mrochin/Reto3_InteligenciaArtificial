@@ -1,5 +1,4 @@
-
-# DataSync QA Adapter – Sincronización segura con FastAPI
+# 🧠 DataSync QA Adapter – Sincronización y QA Inteligente con IA + FastAPI
 
 [![QA Workflow](https://github.com/MRochin/Reto3_InteligenciaArtificial/actions/workflows/qa.yml/badge.svg)](https://github.com/MRochin/Reto3_InteligenciaArtificial/actions/workflows/qa.yml)
 [![CodeQL Analysis](https://github.com/MRochin/Reto3_InteligenciaArtificial/actions/workflows/codeql.yml/badge.svg)](https://github.com/MRochin/Reto3_InteligenciaArtificial/actions/workflows/codeql.yml)
@@ -9,22 +8,24 @@
 
 ## 🧩 Descripción general
 
-**DataSync QA Adapter** es un servicio **FastAPI** diseñado para sincronizar información entre bases de datos **SQL Server** y **MySQL** con un enfoque en **seguridad, trazabilidad y aseguramiento de calidad automatizado (QA)**.  
-Integra autenticación **JWT**, validaciones **Pydantic**, **Rate Limiting**, y un **modo Mock** para pruebas sin base de datos real.  
+**DataSync QA Adapter** es un servicio **FastAPI** diseñado para sincronizar datos entre **SQL Server** y **MySQL** con seguridad, trazabilidad y aseguramiento de calidad automatizado.  
+Integra autenticación **JWT**, validaciones **Pydantic**, **Rate Limiting**, y un modo **Mock** para pruebas sin conexión a base de datos real.
 
-Además, incluye un pipeline completo **CI/CD** con herramientas de IA y seguridad:
-
-- **Ruff + Bandit + Detect-Secrets + Pip-Audit + CodeQL + Trivy**  
-- **Pruebas unitarias automatizadas (pytest + coverage ≥80%)**  
-- **Despliegue automático a GHCR (GitHub Container Registry)**  
-- **Actualizaciones automáticas con Dependabot**  
+La gran innovación del proyecto es su **Dashboard QA Inteligente**, que permite:
+- Ejecutar pruebas unitarias con o sin IA desde el navegador.
+- Visualizar en tiempo real el **log de ejecución (streaming)**.
+- Generar y evaluar automáticamente casos de prueba con **IA generativa**.
+- Consultar cobertura de código actualizada y navegar el reporte HTML.
 
 ---
 
 ## 🚀 Despliegue con Docker / Docker Compose
 
-### 🧱 Opción A: Docker Compose (recomendada)
-1. Copia `.env.example` a `.env` y ajusta variables (`HOST_DATASYNC_PATH`, `JWT_SECRET`, `ALLOWED_TABLES`).
+### 🧱 Opción A – Docker Compose (recomendada)
+1. Copia `.env.example` a `.env` y ajusta tus variables:
+   ```bash
+   cp .env.example .env
+   ```
 2. Levanta el servicio:
    ```bash
    docker compose up --build -d
@@ -34,111 +35,130 @@ Además, incluye un pipeline completo **CI/CD** con herramientas de IA y segurid
    curl http://localhost:8000/health
    ```
 
-> El DataSync del host se monta **de solo lectura** en `/app/datasync`.  
-> Si requieres escritura para logs, cambia `:ro` por `:rw`.
+📦 Por defecto:
+- El adaptador se expone en `http://localhost:8000`.
+- El dashboard QA está disponible en [`http://localhost:8000/qa`](http://localhost:8000/qa).
+- El DataSync host se monta en `/app/datasync` (solo lectura, configurable).
 
 ---
 
+## 🧪 QA Dashboard Inteligente
 
-## 🧪 Modo Mock – Simulación sin Bases de Datos
+Al iniciar el contenedor, visita:  
+👉 **[http://localhost:8000/qa](http://localhost:8000/qa)**
 
-Permite validar todo el adapter (**JWT**, rate limit, listas blancas, `/logs`, `/status`, `/sync`) **sin depender de SQL Server ni MySQL**.
+### Funcionalidades principales
+| Botón | Descripción |
+|--------|--------------|
+| 🤖 **Forzar IA** | Ejecuta `tools/ai_test_runner.py` usando `python -m tools.ai_test_runner`. Genera pruebas automáticamente mediante IA y ejecuta el coverage. |
+| 🐍 **Forzar pytest** | Ejecuta las pruebas normales (`pytest --cov=app --cov-report=html --cov-report=xml -q`). |
+| 📡 **Stream en vivo** | Muestra la salida de las pruebas en tiempo real dentro del navegador. |
 
-### 🔎 Prueba rápida
+El dashboard también muestra:
+- **Porcentaje de cobertura** (automático al cargar la página o al finalizar las pruebas).
+- **Indicadores visuales de calidad:** verde ≥80%, amarillo 60–79%, rojo <60%.
+- Enlace directo al reporte HTML de cobertura (`/htmlcov`).
 
-# health
-```bash 
-curl http://localhost:8000/health
+---
+
+## ⚙️ Endpoints QA
+
+| Endpoint | Descripción |
+|-----------|-------------|
+| `/qa/run-tests` | Ejecuta pruebas (`mode=ai`, `pytest` o `auto`). |
+| `/qa/run-tests/stream` | Ejecuta pruebas con salida en vivo (streaming). |
+| `/qa/coverage/summary` | Devuelve cobertura actual (JSON). |
+| `/qa/coverage/refresh` | Remonta `/htmlcov` si fue regenerado. |
+| `/qa/ai-runner` | Verifica si existe y dónde se encuentra `ai_test_runner.py`. |
+| `/internal/dev-token` | Genera token JWT de desarrollo (solo modo local). |
+
+---
+
+## 🧠 Generación Automática de Pruebas con IA
+
+El archivo `tools/ai_test_runner.py` permite generar **tests unitarios inteligentes** usando modelos de lenguaje (ej. GPT-4, o local).  
+El sistema analiza el código fuente, identifica rutas y genera automáticamente archivos bajo `/tests/ai_generated/`, que luego se ejecutan con `pytest`.
+
+### Flujo completo:
+
+```mermaid
+flowchart LR
+    A[FastAPI App] --> B[AI Runner]
+    B -->|Analiza módulos| C[Genera tests en /tests/ai_generated]
+    C --> D[Ejecuta pytest]
+    D --> E[Genera coverage.xml + htmlcov/]
+    E --> F[Dashboard QA muestra resultados]
 ```
-```bash 
-# login → token
-TOKEN=$(curl -s -X POST -d "username=admin&password=adminadmin" http://localhost:8000/auth/login | jq -r .access_token)
-```
-
-# status
-```bash 
-curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/status
-```
-# sync (mock simula éxito)
-```bash 
-curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"   -d '{"tables":["kpi_jornadas"],"dry_run":true}' http://localhost:8000/sync
-```
 
 ---
 
-## ⚙️ CI/CD y QA Segura
-
-El proyecto implementa un flujo completo de integración continua (CI/CD) para asegurar la calidad y seguridad del código:
-
-### 🧪 **1. QA Workflow (`.github/workflows/qa.yml`)**
-Ejecuta en cada *push* o *pull request*:
-- `ruff` → estilo y convenciones.  
-- `bandit` → análisis estático de seguridad.  
-- `detect-secrets` → búsqueda de credenciales expuestas.  
-- `pip-audit` → vulnerabilidades en dependencias.  
-- `pytest` → pruebas unitarias (mínimo 80% cobertura).  
-- Falla automáticamente si algún gate no se cumple.
-
-### 🔬 **2. CodeQL (`.github/workflows/codeql.yml`)**
-Escanea el código fuente (Python) en busca de patrones de vulnerabilidad.  
-Corre en el branch `main`, en PRs y de forma semanal.
-
-### 🐳 **3. Docker Publish (`.github/workflows/docker-publish.yml`)**
-Construye y publica imágenes Docker firmadas en GHCR (`ghcr.io/MRochin/Reto3_InteligenciaArtificial`).  
-Incluye escaneo de vulnerabilidades de imagen con **Trivy** (HIGH/CRITICAL bloquean publicación).
-
-### 🧠 **4. Dependabot & Security**
-- `dependabot.yml` → actualizaciones automáticas de pip y GitHub Actions.  
-- `SECURITY.md` → política de seguridad con lineamientos del pipeline.  
-
-> Todos los flujos CI/CD se ejecutan en `main`, y los resultados se reflejan en los **badges** del encabezado.
-
----
-
-## ⚙️ Comandos útiles
-
-| Acción | Comando |
-|--------|----------|
-| 🧪 Ejecutar pruebas | `pytest --cov=app --cov-report=term-missing` |
-| 🧰 Linter | `ruff check app` |
-| 🔒 Análisis de seguridad | `bandit -r app -ll` |
-| 🧼 Auditoría de dependencias | `pip-audit` |
-| 🧬 Ejecutar CI local | `pytest && ruff check app && bandit -r app && pip-audit` |
-| 🐳 Construir imagen Docker | `docker build -t datasync-qa-adapter .` |
-| 🚀 Correr modo Mock local | `./run-mock.sh` |
-
----
-
-## 🔐 Seguridad y calidad
-
-- Pipelines CI/CD con **SAST**, **SCA** y **tests automatizados**.  
-- **Cobertura mínima 80%** como gate obligatorio.  
-- Revisión automática de dependencias y secretos.  
-- Imágenes Docker escaneadas por vulnerabilidades (Trivy).  
-- Gestión segura de variables con `.env` y **GitHub Secrets**.  
-
----
-
-## 🧠 Arquitectura general
+## ⚙️ Estructura del proyecto
 
 ```
 📦 DataSync QA Adapter
 ├── app/
-│   ├── main.py              → Entrypoint FastAPI
-│   ├── auth.py              → JWT + bcrypt
+│   ├── main.py              → Entrypoint principal (incluye dashboard QA)
+│   ├── auth.py              → JWT + autenticación
 │   ├── schemas.py           → Validaciones Pydantic
-│   └── settings.py          → Configuración y rate limits
+│   └── settings.py          → Configuración + Rate Limiting
 │
-├── datasync-mock/           → Motor simulado (sin BD)
-│   └── src/sync_engine.py
+├── tools/
+│   └── ai_test_runner.py    → Generador automático de pruebas con IA
 │
-├── tests/                   → Pruebas automatizadas (pytest)
-├── docker-compose.yml       → Entorno Docker
-├── Dockerfile               → Imagen base
-├── .env.example             → Variables de entorno (ejemplo)
-├── .github/workflows/       → CI/CD pipelines (QA, CodeQL, Docker)
-└── README.md                → Documentación completa
+├── tests/
+│   ├── ai_generated/        → Tests creados por IA
+│   └── test_edgecases.py    → Pruebas de fallback y seguridad
+│
+├── datasync-mock/src/       → Motor de sincronización simulado
+│   └── sync_engine.py
+│
+├── htmlcov/                 → Reportes de cobertura HTML
+├── docker-compose.yml
+├── Dockerfile
+├── pytest.ini
+├── .coveragerc
+├── prompts/                 → Prompts base del AI runner
+└── README.md
 ```
+
+---
+
+## 🔐 Seguridad y CI/CD
+
+El proyecto integra pipelines de aseguramiento de calidad con análisis estático, dinámico y de dependencias:
+
+| Fase | Herramienta | Propósito |
+|------|--------------|-----------|
+| Estilo y lint | Ruff | Validación PEP8 y convenciones |
+| Seguridad estática | Bandit | Análisis de vulnerabilidades |
+| Secret scanning | Detect-Secrets | Detección de claves o tokens expuestos |
+| Auditoría | Pip-Audit | Dependencias con CVE |
+| Análisis semántico | CodeQL | Vulnerabilidades de flujo y lógica |
+| Imagen Docker | Trivy | Escaneo de CVE críticos |
+| Pruebas | Pytest + Coverage | Garantiza calidad ≥80% |
+| Automatización | GitHub Actions | CI/CD y despliegue a GHCR |
+
+---
+
+## 🧪 Comandos útiles
+
+| Acción | Comando |
+|--------|----------|
+| 🧪 Ejecutar pruebas | `pytest --cov=app --cov-report=term-missing` |
+| 🤖 Ejecutar AI Runner | `python -m tools.ai_test_runner` |
+| 📈 Ver cobertura | `open htmlcov/index.html` |
+| 🐳 Levantar entorno Docker | `docker compose up --build -d` |
+| 🔧 Revisar endpoints QA | `curl -X GET http://localhost:8000/qa/ai-runner` |
+
+---
+
+## 🧠 Inteligencia Artificial aplicada a QA
+
+El sistema combina **IA generativa + QA automatizado** para crear un entorno de validación continua:
+- **Generación dinámica de tests** con comprensión semántica del código.
+- **Aprendizaje incremental**: la IA analiza los resultados de cobertura y mejora los casos faltantes.
+- **Pipeline auto-verificante**: si el coverage baja <80%, la IA propone y genera nuevos tests.
+- **Auditoría predictiva** con CodeQL y Trivy integrados.
 
 ---
 
@@ -148,3 +168,7 @@ Incluye escaneo de vulnerabilidades de imagen con **Trivy** (HIGH/CRITICAL bloqu
 **Repositorio:** [Reto3_InteligenciaArtificial](https://github.com/MRochin/Reto3_InteligenciaArtificial)  
 **Licencia:** MIT  
 **Última actualización:** Octubre 2025
+
+---
+
+> ✨ “La mejor prueba no es solo la que pasa, sino la que enseña por qué el código fallaría.” — *QA Philosophy*

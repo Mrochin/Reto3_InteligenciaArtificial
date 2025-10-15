@@ -1,5 +1,3 @@
-
-
 services:
   adapter:
     build:
@@ -15,10 +13,19 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS-*}
       ALLOWED_TABLES: ${ALLOWED_TABLES-}
       LOGS_DIR: /app/datasync/logs
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      LLM_MODEL: ${LLM_MODEL-gpt-4o}
+      MAX_ITERS: ${MAX_ITERS-3}
+      MAX_SOURCE_CHARS: ${MAX_SOURCE_CHARS-10000}
+
     volumes:
       - ${HOST_DATASYNC_PATH-/Users/mrochin/DataSync}:/app/datasync:ro
+      - ./tests:/app/tests
+      # 👇 monta las utilidades QA dentro del contenedor
+      - ./qa_validate_endpoints.py:/app/qa_validate_endpoints.py:ro
+      - ./ai_test_runner.py:/app/ai_test_runner.py:ro
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8000/health"]
+      test: [ "CMD-SHELL", "curl -fsS http://localhost:8000/health || exit 1" ]
       interval: 10s
       timeout: 3s
       retries: 10

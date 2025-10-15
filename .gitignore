@@ -19,3 +19,10 @@ Thumbs.db
 # Configuración de IDE
 .vscode/
 .idea/
+
+# Archivos generados por IA
+tests/ai_generated/
+htmlcov/
+pytest_cache/
+coverage.xml
+.coverage

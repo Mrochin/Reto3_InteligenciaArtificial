@@ -1,0 +1,51 @@
+name: AI Test Sprint
+
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: LLM model id (optional)
+        required: false
+        default: gpt-4o-mini
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  ai-tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      LLM_MODEL: ${{ github.event.inputs.model || 'gpt-4o-mini' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          # cliente openai
+          pip install openai>=1.43.0
+
+      - name: Run AI Test Runner
+        run: |
+          python tools/ai_test_runner.py
+
+      - name: Create Pull Request with generated tests
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "chore(tests): add AI-generated tests"
+          title: "AI: nuevos tests generados"
+          body: |
+            Este PR añade pruebas generadas automáticamente por IA según cobertura/rutas.
+            Ver detalles en logs del job **AI Test Sprint**.
+          branch: ai/tests-${{ github.run_id }}
+          base: main
