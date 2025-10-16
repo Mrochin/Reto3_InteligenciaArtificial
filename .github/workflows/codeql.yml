@@ -10,13 +10,23 @@ on:
 
 jobs:
   analyze:
+    runs-on: ubuntu-latest
     permissions:
       contents: read
-      security-events: write
-    runs-on: ubuntu-latest
+      security-events: write   # subir SARIF
+      actions: read            # evitar 403 al consultar run/status
     steps:
-      - uses: actions/checkout@v4
-      - uses: github/codeql-action/init@v3
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
         with:
           languages: python
-      - uses: github/codeql-action/analyze@v3
+
+      # (Opcional) salta análisis en PRs desde forks para evitar permisos limitados
+      - name: Perform CodeQL Analysis
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: github/codeql-action/analyze@v3
